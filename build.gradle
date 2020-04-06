@@ -16,7 +16,7 @@
  */
 
 group 'baritone'
-version '1.2.13'
+version '1.5.2'
 
 buildscript {
     repositories {
@@ -25,24 +25,27 @@ buildscript {
             url = 'http://files.minecraftforge.net/maven'
         }
         maven {
-            name = 'SpongePowered'
-            url = 'http://repo.spongepowered.org/maven'
+            name = 'impactdevelopment-repo'
+            url = 'https://impactdevelopment.github.io/maven/'
         }
         jcenter()
     }
 
     dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-        classpath 'org.spongepowered:mixingradle:0.6-SNAPSHOT'
+        classpath group: 'com.github.ImpactDevelopment', name: 'ForgeGradle', version: '3.0.115'
+        classpath group: 'com.github.ImpactDevelopment', name: 'MixinGradle', version: '0.6.2'
     }
 }
-
 
 import baritone.gradle.task.CreateDistTask
 import baritone.gradle.task.ProguardTask
 
+import net.minecraftforge.gradle.userdev.tasks.GenerateSRG
+import net.minecraftforge.gradle.userdev.tasks.RenameJarInPlace
+import org.apache.tools.ant.taskdefs.condition.Os
+
 apply plugin: 'java'
-apply plugin: 'net.minecraftforge.gradle.tweaker-client'
+apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'org.spongepowered.mixin'
 
 sourceCompatibility = targetCompatibility = '1.8'
@@ -52,8 +55,19 @@ compileJava {
 }
 
 sourceSets {
+    api {
+        compileClasspath += main.compileClasspath
+    }
+    main {
+        compileClasspath += api.output
+    }
+    test {
+        compileClasspath += main.compileClasspath + main.runtimeClasspath + main.output
+        runtimeClasspath += main.compileClasspath + main.runtimeClasspath + main.output
+    }
     launch {
         compileClasspath += main.compileClasspath + main.runtimeClasspath + main.output
+        runtimeClasspath += main.compileClasspath + main.runtimeClasspath + main.output
     }
 
     schematica_api {
@@ -65,14 +79,56 @@ sourceSets {
     }
 }
 
-minecraft {
-    version = '1.12.2'
-    mappings = 'stable_39'
-    tweakClass = 'baritone.launch.BaritoneTweaker'
-    runDir = 'run'
+task sourceJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.api.allSource
+}
 
-    // The sources jar should use SRG names not MCP to ensure compatibility with all mappings
-    makeObfSourceJar = true
+minecraft {
+    mappings channel: 'snapshot', version: '20200213-1.15.1'
+
+    if (getProject().hasProperty("baritone.forge_build")) {
+        reobfMappings 'searge'
+    } else {
+        reobfMappings 'notch'
+    }
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            source sourceSets.launch
+
+            main 'baritone.launch.LaunchTesting'
+
+            environment 'assetIndex', '{asset_index}'
+            environment 'assetDirectory', downloadAssets.output
+            environment 'nativesDirectory', extractNatives.output
+
+            environment 'tweakClass', 'baritone.launch.BaritoneTweaker'
+
+            if (Os.isFamily(Os.FAMILY_MAC)) {
+                jvmArgs "-XstartOnFirstThread"
+            }
+        }
+
+        autoTest {
+            workingDirectory project.file('autotest')
+            source sourceSets.launch
+
+            main 'baritone.launch.LaunchTesting'
+
+            environment 'assetIndex', '{asset_index}'
+            environment 'assetDirectory', downloadAssets.output
+            environment 'nativesDirectory', extractNatives.output
+
+            environment 'tweakClass', 'baritone.launch.BaritoneTweaker'
+            environment 'BARITONE_AUTO_TEST', 'true'
+
+            if (Os.isFamily(Os.FAMILY_MAC)) {
+                jvmArgs "-XstartOnFirstThread"
+            }
+        }
+    }
 }
 
 repositories {
@@ -90,8 +146,14 @@ repositories {
 }
 
 dependencies {
+    minecraft 'com.github.ImpactDevelopment:Vanilla:1.15.2'
+
+    runtime launchCompile('net.minecraft:launchwrapper:1.12') {
+        exclude module: 'lwjgl'
+    }
+    runtime launchCompile('org.ow2.asm:asm-debug-all:5.2')
     runtime launchCompile('com.github.ImpactDevelopment:SimpleTweaker:1.2')
-    runtime launchCompile('org.spongepowered:mixin:0.7.11-SNAPSHOT') {
+    runtime launchCompile('org.spongepowered:mixin:0.8.+') {
         // Mixin includes a lot of dependencies that are too up-to-date
         exclude module: 'launchwrapper'
         exclude module: 'guava'
@@ -99,6 +161,7 @@ dependencies {
         exclude module: 'commons-io'
         exclude module: 'log4j-core'
     }
+
     testImplementation 'junit:junit:4.12'
 }
 
@@ -123,14 +186,47 @@ jar {
     manifest {
         attributes(
                 'MixinConfigs': 'mixins.baritone.json',
+                "MixinConnector": "baritone.launch.BaritoneMixinConnector",
 
                 'Implementation-Title': 'Baritone',
-                'Implementation-Version': version
+                'Implementation-Version': version,
         )
     }
 }
 
-task proguard(type: ProguardTask) {
+// skidded from ProguardTask
+File getClientJar() {
+    return project.getConvention().getPlugin(JavaPluginConvention.class).getSourceSets().findByName("launch").getRuntimeClasspath().getFiles()
+            .stream()
+            .filter({f -> f.toString().endsWith("client-extra.jar")})
+            .map({f -> new File(f.getParentFile(), "client.jar")})
+            .findFirst()
+            .get()
+}
+
+task copyMcJar(type: Copy) {
+    def mcJar = {getClientJar()}
+
+    from mcJar
+    into 'build/createMcSrgJar/'
+    rename {'client-srg.jar'}
+}
+
+task createSrgMc(type: RenameJarInPlace) {
+    setInput(new File(copyMcJar.getOutputs().getFiles().getSingleFile(), "client-srg.jar"))
+    setClasspath(files({getClientJar()}))
+
+    // fork
+    setMappingType(net.minecraftforge.gradle.common.util.MappingFile.Mapping.SEARGE)
+    setJarTask('trans alaska pipeline')
+}
+project.afterEvaluate {
+    createSrgMc.dependsOn(extractSrg, copyMcJar)
+    createSrgMc.setMappings(extractSrg.getOutput())
+}
+
+
+task proguard(type: ProguardTask, dependsOn: createSrgMc) { // TODO: dont need to create srg mc if doing notch build
     url 'https://downloads.sourceforge.net/project/proguard/proguard/6.0/proguard6.0.3.zip'
     extract 'proguard6.0.3/lib/proguard.jar'
 }

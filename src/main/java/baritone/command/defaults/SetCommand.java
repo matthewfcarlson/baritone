@@ -28,7 +28,7 @@ import baritone.api.command.argument.IArgConsumer;
 import baritone.api.command.helpers.Paginator;
 import baritone.api.command.helpers.TabCompleteHelper;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.util.text.event.HoverEvent;
@@ -78,18 +78,18 @@ public class SetCommand extends Command {
                                     : String.format("All %ssettings:", viewModified ? "modified " : "")
                     ),
                     setting -> {
-                        ITextComponent typeComponent = new TextComponentString(String.format(
+                        ITextComponent typeComponent = new StringTextComponent(String.format(
                                 " (%s)",
                                 settingTypeToString(setting)
                         ));
                         typeComponent.getStyle().setColor(TextFormatting.DARK_GRAY);
-                        ITextComponent hoverComponent = new TextComponentString("");
+                        ITextComponent hoverComponent = new StringTextComponent("");
                         hoverComponent.getStyle().setColor(TextFormatting.GRAY);
                         hoverComponent.appendText(setting.getName());
                         hoverComponent.appendText(String.format("\nType: %s", settingTypeToString(setting)));
                         hoverComponent.appendText(String.format("\n\nValue:\n%s", settingValueToString(setting)));
                         String commandSuggestion = Baritone.settings().prefix.value + String.format("set %s ", setting.getName());
-                        ITextComponent component = new TextComponentString(setting.getName());
+                        ITextComponent component = new StringTextComponent(setting.getName());
                         component.getStyle().setColor(TextFormatting.GRAY);
                         component.appendSibling(typeComponent);
                         component.getStyle()
@@ -163,12 +163,12 @@ public class SetCommand extends Command {
                         settingValueToString(setting)
                 ));
             }
-            ITextComponent oldValueComponent = new TextComponentString(String.format("Old value: %s", oldValue));
+            ITextComponent oldValueComponent = new StringTextComponent(String.format("Old value: %s", oldValue));
             oldValueComponent.getStyle()
                     .setColor(TextFormatting.GRAY)
                     .setHoverEvent(new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
-                            new TextComponentString("Click to set the setting back to this value")
+                            new StringTextComponent("Click to set the setting back to this value")
                     ))
                     .setClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,

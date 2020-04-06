@@ -23,10 +23,10 @@ import baritone.api.command.ICommand;
 import baritone.api.command.argument.ICommandArgument;
 import baritone.api.command.exception.CommandUnhandledException;
 import baritone.api.command.exception.ICommandException;
-import baritone.command.argument.ArgConsumer;
 import baritone.api.command.helpers.TabCompleteHelper;
 import baritone.api.command.manager.ICommandManager;
 import baritone.api.command.registry.Registry;
+import baritone.command.argument.ArgConsumer;
 import baritone.command.argument.CommandArguments;
 import baritone.command.defaults.DefaultCommands;
 import net.minecraft.util.Tuple;
@@ -34,6 +34,7 @@ import net.minecraft.util.Tuple;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Stream;
+
 
 /**
  * The default, internal implementation of {@link ICommandManager}
@@ -94,8 +95,8 @@ public class CommandManager implements ICommandManager {
     @Override
     public Stream<String> tabComplete(String prefix) {
         Tuple<String, List<ICommandArgument>> pair = expand(prefix, true);
-        String label = pair.getFirst();
-        List<ICommandArgument> args = pair.getSecond();
+        String label = pair.getA();
+        List<ICommandArgument> args = pair.getB();
         if (args.isEmpty()) {
             return new TabCompleteHelper()
                     .addCommands(this.baritone.getCommandManager())
@@ -107,8 +108,8 @@ public class CommandManager implements ICommandManager {
     }
 
     private ExecutionWrapper from(Tuple<String, List<ICommandArgument>> expanded) {
-        String label = expanded.getFirst();
-        ArgConsumer args = new ArgConsumer(this, expanded.getSecond());
+        String label = expanded.getA();
+        ArgConsumer args = new ArgConsumer(this, expanded.getB());
 
         ICommand command = this.getCommand(label);
         return command == null ? null : new ExecutionWrapper(command, label, args);
@@ -125,6 +126,7 @@ public class CommandManager implements ICommandManager {
     }
 
     private static final class ExecutionWrapper {
+
         private ICommand command;
         private String label;
         private ArgConsumer args;

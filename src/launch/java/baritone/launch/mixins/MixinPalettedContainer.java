@@ -17,23 +17,31 @@
 
 package baritone.launch.mixins;
 
-import baritone.utils.accessor.IChunkProviderClient;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import net.minecraft.client.multiplayer.ChunkProviderClient;
-import net.minecraft.world.chunk.Chunk;
-import org.spongepowered.asm.mixin.Final;
+import baritone.utils.accessor.IBitArray;
+import baritone.utils.accessor.IPalettedContainer;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.BitArray;
+import net.minecraft.util.palette.IPalette;
+import net.minecraft.util.palette.PalettedContainer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 
-@Mixin(ChunkProviderClient.class)
-public class MixinChunkProviderClient implements IChunkProviderClient {
+@Mixin(PalettedContainer.class)
+public abstract class MixinPalettedContainer implements IPalettedContainer {
 
     @Shadow
-    @Final
-    private Long2ObjectMap<Chunk> loadedChunks;
+    protected BitArray storage;
+
+    @Shadow
+    protected IPalette<BlockState> palette;
 
     @Override
-    public Long2ObjectMap<Chunk> loadedChunks() {
-        return this.loadedChunks;
+    public BlockState getAtPalette(int index) {
+        return palette.get(index);
+    }
+
+    @Override
+    public int[] storageArray() {
+        return ((IBitArray) storage).toArray();
     }
 }

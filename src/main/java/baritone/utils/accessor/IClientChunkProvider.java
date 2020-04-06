@@ -17,15 +17,10 @@
 
 package baritone.utils.accessor;
 
-import net.minecraft.world.WorldProvider;
-import net.minecraft.world.chunk.storage.IChunkLoader;
+import net.minecraft.client.multiplayer.ClientChunkProvider;
 
-/**
- * @author Brady
- * @see WorldProvider
- * @since 8/4/2018
- */
-public interface IChunkProviderServer {
+public interface IClientChunkProvider {
+    ClientChunkProvider createThreadSafeCopy();
 
-    IChunkLoader getChunkLoader();
+    IChunkArray extractReferenceArray();
 }

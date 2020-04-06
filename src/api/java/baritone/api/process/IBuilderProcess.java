@@ -18,7 +18,7 @@
 package baritone.api.process;
 
 import baritone.api.schematic.ISchematic;
-import net.minecraft.block.state.IBlockState;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
@@ -52,7 +52,7 @@ public interface IBuilderProcess extends IBaritoneProcess {
     boolean build(String name, File schematic, Vec3i origin);
 
     default boolean build(String schematicFile, BlockPos origin) {
-        File file = new File(new File(Minecraft.getMinecraft().gameDir, "schematics"), schematicFile);
+        File file = new File(new File(Minecraft.getInstance().gameDir, "schematics"), schematicFile);
         return build(schematicFile, file, origin);
     }
 
@@ -71,5 +71,5 @@ public interface IBuilderProcess extends IBaritoneProcess {
      * schematics, for example, to pick a state that the builder process will be happy with, because any variation will
      * cause it to give up. This is updated every tick, but only while the builder process is active.
      */
-    List<IBlockState> getApproxPlaceable();
+    List<BlockState> getApproxPlaceable();
 }

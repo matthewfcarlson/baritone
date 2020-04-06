@@ -24,12 +24,24 @@ import baritone.api.pathing.goals.Goal;
 import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.utils.Helper;
 import baritone.api.utils.IPlayerContext;
+import net.minecraft.client.GameSettings;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiMainMenu;
-import net.minecraft.client.settings.GameSettings;
+import net.minecraft.client.gui.screen.MainMenuScreen;
+import net.minecraft.client.settings.AmbientOcclusionStatus;
+import net.minecraft.client.settings.CloudOption;
+import net.minecraft.client.settings.ParticleStatus;
 import net.minecraft.client.tutorial.TutorialSteps;
+import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.server.integrated.IntegratedServer;
+import net.minecraft.util.HTTPUtil;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.*;
+import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.server.ServerWorld;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * Responsible for automatically testing Baritone's pathing algorithm by automatically creating a world with a specific
@@ -60,42 +72,58 @@ public class BaritoneAutoTest implements AbstractGameEventListener, Helper {
         System.out.println("Optimizing Game Settings");
 
         GameSettings s = mc.gameSettings;
-        s.limitFramerate = 20;
+        s.framerateLimit = 20;
         s.mipmapLevels = 0;
-        s.particleSetting = 2;
+        s.particles = ParticleStatus.MINIMAL;
         s.overrideWidth = 128;
         s.overrideHeight = 128;
         s.heldItemTooltips = false;
         s.entityShadows = false;
         s.chatScale = 0.0F;
-        s.ambientOcclusion = 0;
-        s.clouds = 0;
+        s.ambientOcclusionStatus = AmbientOcclusionStatus.OFF;
+        s.cloudOption = CloudOption.OFF;
         s.fancyGraphics = false;
         s.tutorialStep = TutorialSteps.NONE;
         s.hideGUI = true;
-        s.fovSetting = 30.0F;
+        s.fov = 30.0F;
     }
 
     @Override
     public void onTick(TickEvent event) {
         IPlayerContext ctx = BaritoneAPI.getProvider().getPrimaryBaritone().getPlayerContext();
         // If we're on the main menu then create the test world and launch the integrated server
-        if (mc.currentScreen instanceof GuiMainMenu) {
+        if (mc.currentScreen instanceof MainMenuScreen) {
             System.out.println("Beginning Baritone automatic test routine");
             mc.displayGuiScreen(null);
             WorldSettings worldsettings = new WorldSettings(TEST_SEED, GameType.SURVIVAL, true, false, WorldType.DEFAULT);
             mc.launchIntegratedServer("BaritoneAutoTest", "BaritoneAutoTest", worldsettings);
         }
 
-        // If the integrated server is running, set the difficulty to peaceful
-        if (mc.getIntegratedServer() != null) {
-            mc.getIntegratedServer().setDifficultyForAllWorlds(EnumDifficulty.PEACEFUL);
+        IntegratedServer server = mc.getIntegratedServer();
 
-            for (final WorldServer world : mc.getIntegratedServer().worlds) {
-                // If the world has initialized, set the spawn point to our defined starting position
-                if (world != null) {
-                    world.setSpawnPoint(STARTING_POSITION);
-                    world.getGameRules().setOrCreateGameRule("spawnRadius", "0");
+        // If the integrated server is launched and the world has initialized, set the spawn point
+        // to our defined starting position
+        if (server != null && server.getWorld(DimensionType.OVERWORLD) != null) {
+            server.setDifficultyForAllWorlds(Difficulty.PEACEFUL, true);
+            if (mc.player == null) {
+                server.execute(() -> {
+                    server.getWorld(DimensionType.OVERWORLD).setSpawnPoint(STARTING_POSITION);
+                    server.getCommandManager().handleCommand(server.getCommandSource(), "/difficulty peaceful");
+                    int result = server.getCommandManager().handleCommand(server.getCommandSource(), "/gamerule spawnRadius 0");
+                    if (result != 0) {
+                        throw new IllegalStateException(result + "");
+                    }
+                });
+                for (final ServerWorld world : mc.getIntegratedServer().getWorlds()) {
+                    // If the world has initialized, set the spawn point to our defined starting position
+                    if (world != null) {
+                        // I would rather do this than try to mess with poz
+                        CompoundNBT nbt = world.getGameRules().write();
+                        nbt.putString("spawnRadius", "0");
+                        world.getGameRules().read(nbt);
+
+                        world.setSpawnPoint(STARTING_POSITION);
+                    }
                 }
             }
         }
@@ -105,7 +133,7 @@ public class BaritoneAutoTest implements AbstractGameEventListener, Helper {
             // Force the integrated server to share the world to LAN so that
             // the ingame pause menu gui doesn't actually pause our game
             if (mc.isSingleplayer() && !mc.getIntegratedServer().getPublic()) {
-                mc.getIntegratedServer().shareToLAN(GameType.SURVIVAL, false);
+                mc.getIntegratedServer().shareToLAN(GameType.SURVIVAL, false, HTTPUtil.getSuitableLanPort());
             }
 
             // For the first 200 ticks, wait for the world to generate
@@ -127,7 +155,16 @@ public class BaritoneAutoTest implements AbstractGameEventListener, Helper {
             // If we have reached our goal, print a message and safely close the game
             if (GOAL.isInGoal(ctx.playerFeet())) {
                 System.out.println("Successfully pathed to " + ctx.playerFeet() + " in " + event.getCount() + " ticks");
+                try {
+                    File file = new File("success");
+                    System.out.println("Writing success to " + file.getAbsolutePath());
+                    Files.write(file.getAbsoluteFile().toPath(), "Success!".getBytes());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 mc.shutdown();
+                mc.shutdownMinecraftApplet();
+                System.exit(0);
             }
 
             // If we have exceeded the expected number of ticks to complete the pathing
@@ -138,5 +175,6 @@ public class BaritoneAutoTest implements AbstractGameEventListener, Helper {
         }
     }
 
-    private BaritoneAutoTest() {}
+    private BaritoneAutoTest() {
+    }
 }

@@ -18,15 +18,16 @@
 package baritone.api.utils;
 
 import baritone.api.cache.IWorldData;
-import net.minecraft.block.BlockSlab;
-import net.minecraft.client.entity.EntityPlayerSP;
+import net.minecraft.block.SlabBlock;
+import net.minecraft.client.entity.player.ClientPlayerEntity;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.RayTraceResult;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.*;
 import net.minecraft.world.World;
 
 import java.util.Optional;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * @author Brady
@@ -34,11 +35,20 @@ import java.util.Optional;
  */
 public interface IPlayerContext {
 
-    EntityPlayerSP player();
+    ClientPlayerEntity player();
 
     IPlayerController playerController();
 
     World world();
+
+    default Iterable<Entity> entities() {
+        return ((ClientWorld) world()).getAllEntities();
+    }
+
+    default Stream<Entity> entitiesStream() {
+        return StreamSupport.stream(entities().spliterator(), false);
+    }
+
 
     IWorldData worldData();
 
@@ -46,7 +56,7 @@ public interface IPlayerContext {
 
     default BetterBlockPos playerFeet() {
         // TODO find a better way to deal with soul sand!!!!!
-        BetterBlockPos feet = new BetterBlockPos(player().posX, player().posY + 0.1251, player().posZ);
+        BetterBlockPos feet = new BetterBlockPos(player().getPositionVec().x, player().getPositionVec().y + 0.1251, player().getPositionVec().z);
 
         // sometimes when calling this from another thread or while world is null, it'll throw a NullPointerException
         // that causes the game to immediately crash
@@ -57,7 +67,7 @@ public interface IPlayerContext {
         // this does not impact performance at all since we're not null checking constantly
         // if there is an exception, the only overhead is Java generating the exception object... so we can ignore it
         try {
-            if (world().getBlockState(feet).getBlock() instanceof BlockSlab) {
+            if (world().getBlockState(feet).getBlock() instanceof SlabBlock) {
                 return feet.up();
             }
         } catch (NullPointerException ignored) {}
@@ -66,11 +76,11 @@ public interface IPlayerContext {
     }
 
     default Vec3d playerFeetAsVec() {
-        return new Vec3d(player().posX, player().posY, player().posZ);
+        return new Vec3d(player().getPositionVec().x, player().getPositionVec().y, player().getPositionVec().z);
     }
 
     default Vec3d playerHead() {
-        return new Vec3d(player().posX, player().posY + player().getEyeHeight(), player().posZ);
+        return new Vec3d(player().getPositionVec().x, player().getPositionVec().y + player().getEyeHeight(), player().getPositionVec().z);
     }
 
     default Rotation playerRotations() {
@@ -78,7 +88,7 @@ public interface IPlayerContext {
     }
 
     static double eyeHeight(boolean ifSneaking) {
-        return ifSneaking ? 1.54 : 1.62;
+        return ifSneaking ? 1.27 : 1.62;
     }
 
     /**
@@ -88,8 +98,8 @@ public interface IPlayerContext {
      */
     default Optional<BlockPos> getSelectedBlock() {
         RayTraceResult result = objectMouseOver();
-        if (result != null && result.typeOfHit == RayTraceResult.Type.BLOCK) {
-            return Optional.of(result.getBlockPos());
+        if (result != null && result.getType() == RayTraceResult.Type.BLOCK) {
+            return Optional.of(((BlockRayTraceResult) result).getPos());
         }
         return Optional.empty();
     }
@@ -105,8 +115,8 @@ public interface IPlayerContext {
      */
     default Optional<Entity> getSelectedEntity() {
         RayTraceResult result = objectMouseOver();
-        if (result != null && result.typeOfHit == RayTraceResult.Type.ENTITY) {
-            return Optional.of(result.entityHit);
+        if (result != null && result.getType() == RayTraceResult.Type.ENTITY) {
+            return Optional.of(((EntityRayTraceResult) result).getEntity());
         }
         return Optional.empty();
     }

@@ -32,17 +32,14 @@ import baritone.cache.WorldScanner;
 import baritone.pathing.movement.MovementHelper;
 import baritone.utils.BaritoneProcessHelper;
 import net.minecraft.block.*;
-import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.item.EntityItem;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
-import net.minecraft.item.EnumDyeColor;
+import net.minecraft.entity.item.ItemEntity;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemDye;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.item.Items;
+import net.minecraft.util.Direction;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
 import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -73,17 +70,17 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
             Items.BEETROOT_SEEDS,
             Items.BEETROOT,
             Items.MELON_SEEDS,
-            Items.MELON,
-            Item.getItemFromBlock(Blocks.MELON_BLOCK),
+            Items.MELON_SLICE,
+            Blocks.MELON.asItem(),
             Items.WHEAT_SEEDS,
             Items.WHEAT,
             Items.PUMPKIN_SEEDS,
-            Item.getItemFromBlock(Blocks.PUMPKIN),
+            Blocks.PUMPKIN.asItem(),
             Items.POTATO,
             Items.CARROT,
             Items.NETHER_WART,
-            Items.REEDS,
-            Item.getItemFromBlock(Blocks.CACTUS)
+            Blocks.SUGAR_CANE.asItem(),
+            Blocks.CACTUS.asItem()
     );
 
     public FarmProcess(Baritone baritone) {
@@ -102,50 +99,50 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
     }
 
     private enum Harvest {
-        WHEAT((BlockCrops) Blocks.WHEAT),
-        CARROTS((BlockCrops) Blocks.CARROTS),
-        POTATOES((BlockCrops) Blocks.POTATOES),
-        BEETROOT((BlockCrops) Blocks.BEETROOTS),
+        WHEAT((CropsBlock) Blocks.WHEAT),
+        CARROTS((CropsBlock) Blocks.CARROTS),
+        POTATOES((CropsBlock) Blocks.POTATOES),
+        BEETROOT((CropsBlock) Blocks.BEETROOTS),
         PUMPKIN(Blocks.PUMPKIN, state -> true),
-        MELON(Blocks.MELON_BLOCK, state -> true),
-        NETHERWART(Blocks.NETHER_WART, state -> state.getValue(BlockNetherWart.AGE) >= 3),
-        SUGARCANE(Blocks.REEDS, null) {
+        MELON(Blocks.MELON, state -> true),
+        NETHERWART(Blocks.NETHER_WART, state -> state.get(NetherWartBlock.AGE) >= 3),
+        SUGARCANE(Blocks.SUGAR_CANE, null) {
             @Override
-            public boolean readyToHarvest(World world, BlockPos pos, IBlockState state) {
+            public boolean readyToHarvest(World world, BlockPos pos, BlockState state) {
                 if (Baritone.settings().replantCrops.value) {
-                    return world.getBlockState(pos.down()).getBlock() instanceof BlockReed;
+                    return world.getBlockState(pos.down()).getBlock() instanceof SugarCaneBlock;
                 }
                 return true;
             }
         },
         CACTUS(Blocks.CACTUS, null) {
             @Override
-            public boolean readyToHarvest(World world, BlockPos pos, IBlockState state) {
+            public boolean readyToHarvest(World world, BlockPos pos, BlockState state) {
                 if (Baritone.settings().replantCrops.value) {
-                    return world.getBlockState(pos.down()).getBlock() instanceof BlockCactus;
+                    return world.getBlockState(pos.down()).getBlock() instanceof CactusBlock;
                 }
                 return true;
             }
         };
         public final Block block;
-        public final Predicate<IBlockState> readyToHarvest;
+        public final Predicate<BlockState> readyToHarvest;
 
-        Harvest(BlockCrops blockCrops) {
+        Harvest(CropsBlock blockCrops) {
             this(blockCrops, blockCrops::isMaxAge);
             // max age is 7 for wheat, carrots, and potatoes, but 3 for beetroot
         }
 
-        Harvest(Block block, Predicate<IBlockState> readyToHarvest) {
+        Harvest(Block block, Predicate<BlockState> readyToHarvest) {
             this.block = block;
             this.readyToHarvest = readyToHarvest;
         }
 
-        public boolean readyToHarvest(World world, BlockPos pos, IBlockState state) {
+        public boolean readyToHarvest(World world, BlockPos pos, BlockState state) {
             return readyToHarvest.test(state);
         }
     }
 
-    private boolean readyForHarvest(World world, BlockPos pos, IBlockState state) {
+    private boolean readyForHarvest(World world, BlockPos pos, BlockState state) {
         for (Harvest harvest : Harvest.values()) {
             if (harvest.block == state.getBlock()) {
                 return harvest.readyToHarvest(world, pos, state);
@@ -159,7 +156,7 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
     }
 
     private boolean isBoneMeal(ItemStack stack) {
-        return !stack.isEmpty() && stack.getItem() instanceof ItemDye && EnumDyeColor.byDyeDamage(stack.getMetadata()) == EnumDyeColor.WHITE;
+        return !stack.isEmpty() && stack.getItem().equals(Items.BONE_MEAL);
     }
 
     private boolean isNetherWart(ItemStack stack) {
@@ -190,8 +187,8 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
         List<BlockPos> bonemealable = new ArrayList<>();
         List<BlockPos> openSoulsand = new ArrayList<>();
         for (BlockPos pos : locations) {
-            IBlockState state = ctx.world().getBlockState(pos);
-            boolean airAbove = ctx.world().getBlockState(pos.up()).getBlock() instanceof BlockAir;
+            BlockState state = ctx.world().getBlockState(pos);
+            boolean airAbove = ctx.world().getBlockState(pos.up()).getBlock() instanceof AirBlock;
             if (state.getBlock() == Blocks.FARMLAND) {
                 if (airAbove) {
                     openFarmland.add(pos);
@@ -235,7 +232,7 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
             Optional<Rotation> rot = RotationUtils.reachableOffset(ctx.player(), pos, new Vec3d(pos.getX() + 0.5, pos.getY() + 1, pos.getZ() + 0.5), ctx.playerController().getBlockReachDistance(), false);
             if (rot.isPresent() && isSafeToCancel && baritone.getInventoryBehavior().throwaway(true, soulsand ? this::isNetherWart : this::isPlantable)) {
                 RayTraceResult result = RayTraceUtils.rayTraceTowards(ctx.player(), rot.get(), ctx.playerController().getBlockReachDistance());
-                if (result.typeOfHit == RayTraceResult.Type.BLOCK && result.sideHit == EnumFacing.UP) {
+                if (result instanceof BlockRayTraceResult && ((BlockRayTraceResult) result).getFace() == Direction.UP) {
                     baritone.getLookBehavior().updateTarget(rot.get(), true);
                     if (ctx.isLookingAt(pos)) {
                         baritone.getInputOverrideHandler().setInputForceState(Input.CLICK_RIGHT, true);
@@ -280,12 +277,12 @@ public final class FarmProcess extends BaritoneProcessHelper implements IFarmPro
                 goalz.add(new GoalBlock(pos));
             }
         }
-        for (Entity entity : ctx.world().loadedEntityList) {
-            if (entity instanceof EntityItem && entity.onGround) {
-                EntityItem ei = (EntityItem) entity;
+        for (Entity entity : ctx.entities()) {
+            if (entity instanceof ItemEntity && entity.onGround) {
+                ItemEntity ei = (ItemEntity) entity;
                 if (PICKUP_DROPPED.contains(ei.getItem().getItem())) {
                     // +0.1 because of farmland's 0.9375 dummy height lol
-                    goalz.add(new GoalBlock(new BlockPos(entity.posX, entity.posY + 0.1, entity.posZ)));
+                    goalz.add(new GoalBlock(new BlockPos(entity.getPositionVec().x, entity.getPositionVec().y + 0.1, entity.getPositionVec().z)));
                 }
             }
         }

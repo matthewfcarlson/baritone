@@ -36,7 +36,7 @@ import baritone.command.argument.CommandArguments;
 import baritone.command.manager.CommandManager;
 import net.minecraft.util.Tuple;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.util.text.event.HoverEvent;
@@ -68,7 +68,7 @@ public class BaritoneChatControl implements Helper, AbstractGameEventListener {
             event.cancel();
             String commandStr = msg.substring(forceRun ? FORCE_COMMAND_PREFIX.length() : prefix.length());
             if (!runCommand(commandStr) && !commandStr.trim().isEmpty()) {
-                new CommandNotFoundException(CommandManager.expand(commandStr).getFirst()).handle(null, null);
+                new CommandNotFoundException(CommandManager.expand(commandStr).getA()).handle(null, null);
             }
         } else if ((settings.chatControl.value || settings.chatControlAnyway.value) && runCommand(msg)) {
             event.cancel();
@@ -79,12 +79,12 @@ public class BaritoneChatControl implements Helper, AbstractGameEventListener {
         if (settings.echoCommands.value) {
             String msg = command + rest;
             String toDisplay = settings.censorRanCommands.value ? command + " ..." : msg;
-            ITextComponent component = new TextComponentString(String.format("> %s", toDisplay));
+            ITextComponent component = new StringTextComponent(String.format("> %s", toDisplay));
             component.getStyle()
                     .setColor(TextFormatting.WHITE)
                     .setHoverEvent(new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
-                            new TextComponentString("Click to rerun command")
+                            new StringTextComponent("Click to rerun command")
                     ))
                     .setClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
@@ -100,7 +100,7 @@ public class BaritoneChatControl implements Helper, AbstractGameEventListener {
             return false;
         } else if (msg.trim().equalsIgnoreCase("orderpizza")) {
             try {
-                ((IGuiScreen) mc.currentScreen).openLink(new URI("https://www.dominos.com/en/pages/order/"));
+                ((IGuiScreen) mc.currentScreen).openLinkInvoker(new URI("https://www.dominos.com/en/pages/order/"));
             } catch (NullPointerException | URISyntaxException ignored) {}
             return false;
         }
@@ -108,9 +108,9 @@ public class BaritoneChatControl implements Helper, AbstractGameEventListener {
             return this.runCommand("help");
         }
         Tuple<String, List<ICommandArgument>> pair = CommandManager.expand(msg);
-        String command = pair.getFirst();
-        String rest = msg.substring(pair.getFirst().length());
-        ArgConsumer argc = new ArgConsumer(this.manager, pair.getSecond());
+        String command = pair.getA();
+        String rest = msg.substring(pair.getA().length());
+        ArgConsumer argc = new ArgConsumer(this.manager, pair.getB());
         if (!argc.hasAny()) {
             Settings.Setting setting = settings.byLowerName.get(command.toLowerCase(Locale.US));
             if (setting != null) {
@@ -127,7 +127,7 @@ public class BaritoneChatControl implements Helper, AbstractGameEventListener {
                 if (setting.getName().equals("logger")) {
                     continue;
                 }
-                if (setting.getName().equalsIgnoreCase(pair.getFirst())) {
+                if (setting.getName().equalsIgnoreCase(pair.getA())) {
                     logRanCommand(command, rest);
                     try {
                         this.manager.execute(String.format("set %s %s", setting.getName(), argc.getString()));
@@ -138,7 +138,7 @@ public class BaritoneChatControl implements Helper, AbstractGameEventListener {
         }
 
         // If the command exists, then handle echoing the input
-        if (this.manager.getCommand(pair.getFirst()) != null) {
+        if (this.manager.getCommand(pair.getA()) != null) {
             logRanCommand(command, rest);
         }
 

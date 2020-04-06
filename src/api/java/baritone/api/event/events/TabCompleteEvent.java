@@ -23,7 +23,7 @@ import baritone.api.event.events.type.Overrideable;
 /**
  * @author LoganDark
  */
-public class TabCompleteEvent extends Cancellable {
+public final class TabCompleteEvent extends Cancellable {
 
     public final String prefix;
     public String[] completions;

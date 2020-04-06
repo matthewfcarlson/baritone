@@ -15,28 +15,13 @@
  * along with Baritone.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package baritone.launch.mixins;
+package baritone.utils.accessor;
 
-import baritone.utils.accessor.IChunkProviderServer;
-import net.minecraft.world.chunk.storage.IChunkLoader;
-import net.minecraft.world.gen.ChunkProviderServer;
-import org.spongepowered.asm.mixin.Final;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
+import net.minecraft.block.BlockState;
 
-/**
- * @author Brady
- * @since 9/4/2018
- */
-@Mixin(ChunkProviderServer.class)
-public class MixinChunkProviderServer implements IChunkProviderServer {
+public interface IPalettedContainer {
 
-    @Shadow
-    @Final
-    private IChunkLoader chunkLoader;
+    BlockState getAtPalette(int index);
 
-    @Override
-    public IChunkLoader getChunkLoader() {
-        return this.chunkLoader;
-    }
+    int[] storageArray();
 }

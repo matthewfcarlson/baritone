@@ -17,12 +17,13 @@
 
 package baritone.api.utils;
 
-import net.minecraft.block.BlockFire;
-import net.minecraft.block.state.IBlockState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.FireBlock;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.util.Direction;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.world.World;
 
 /**
@@ -42,12 +43,18 @@ public final class VecUtils {
      * @see #getBlockPosCenter(BlockPos)
      */
     public static Vec3d calculateBlockCenter(World world, BlockPos pos) {
-        IBlockState b = world.getBlockState(pos);
-        AxisAlignedBB bbox = b.getBoundingBox(world, pos);
-        double xDiff = (bbox.minX + bbox.maxX) / 2;
-        double yDiff = (bbox.minY + bbox.maxY) / 2;
-        double zDiff = (bbox.minZ + bbox.maxZ) / 2;
-        if (b.getBlock() instanceof BlockFire) {//look at bottom of fire when putting it out
+        BlockState b = world.getBlockState(pos);
+        VoxelShape shape = b.getCollisionShape(world, pos);
+        if (shape.isEmpty()) {
+            return getBlockPosCenter(pos);
+        }
+        double xDiff = (shape.getStart(Direction.Axis.X) + shape.getEnd(Direction.Axis.X)) / 2;
+        double yDiff = (shape.getStart(Direction.Axis.Y) + shape.getEnd(Direction.Axis.Y)) / 2;
+        double zDiff = (shape.getStart(Direction.Axis.Z) + shape.getEnd(Direction.Axis.Z)) / 2;
+        if (Double.isNaN(xDiff) || Double.isNaN(yDiff) || Double.isNaN(zDiff)) {
+            throw new IllegalStateException(b + " " + pos + " " + shape);
+        }
+        if (b.getBlock() instanceof FireBlock) {//look at bottom of fire when putting it out
             yDiff = 0;
         }
         return new Vec3d(
@@ -98,7 +105,7 @@ public final class VecUtils {
      * @see #getBlockPosCenter(BlockPos)
      */
     public static double entityDistanceToCenter(Entity entity, BlockPos pos) {
-        return distanceToCenter(pos, entity.posX, entity.posY, entity.posZ);
+        return distanceToCenter(pos, entity.getPositionVec().x, entity.getPositionVec().y, entity.getPositionVec().z);
     }
 
     /**
@@ -111,6 +118,6 @@ public final class VecUtils {
      * @see #getBlockPosCenter(BlockPos)
      */
     public static double entityFlatDistanceToCenter(Entity entity, BlockPos pos) {
-        return distanceToCenter(pos, entity.posX, pos.getY() + 0.5, entity.posZ);
+        return distanceToCenter(pos, entity.getPositionVec().x, pos.getY() + 0.5, entity.getPositionVec().z);
     }
 }

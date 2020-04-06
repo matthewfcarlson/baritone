@@ -17,22 +17,22 @@
 
 package baritone.api.command.datatypes;
 
-import baritone.api.command.helpers.TabCompleteHelper;
 import baritone.api.command.exception.CommandException;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityList;
+import baritone.api.command.helpers.TabCompleteHelper;
+import net.minecraft.entity.EntityType;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.registry.Registry;
 
 import java.util.stream.Stream;
 
-public enum EntityClassById implements IDatatypeFor<Class<? extends Entity>> {
+public enum EntityClassById implements IDatatypeFor<EntityType> {
     INSTANCE;
 
     @Override
-    public Class<? extends Entity> get(IDatatypeContext ctx) throws CommandException {
+    public EntityType get(IDatatypeContext ctx) throws CommandException {
         ResourceLocation id = new ResourceLocation(ctx.getConsumer().getString());
-        Class<? extends Entity> entity;
-        if ((entity = EntityList.REGISTRY.getObject(id)) == null) {
+        EntityType entity;
+        if ((entity = Registry.ENTITY_TYPE.getValue(id).orElse(null)) == null) {
             throw new IllegalArgumentException("no entity found by that id");
         }
         return entity;
@@ -41,7 +41,7 @@ public enum EntityClassById implements IDatatypeFor<Class<? extends Entity>> {
     @Override
     public Stream<String> tabComplete(IDatatypeContext ctx) throws CommandException {
         return new TabCompleteHelper()
-                .append(EntityList.getEntityNameList().stream().map(Object::toString))
+                .append(Registry.ENTITY_TYPE.stream().map(Object::toString))
                 .filterPrefixNamespaced(ctx.getConsumer().getString())
                 .sortAlphabetically()
                 .stream();

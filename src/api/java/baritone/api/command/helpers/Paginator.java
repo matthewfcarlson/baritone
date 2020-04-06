@@ -22,7 +22,7 @@ import baritone.api.command.exception.CommandException;
 import baritone.api.command.exception.CommandInvalidTypeException;
 import baritone.api.command.argument.IArgConsumer;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.util.text.event.HoverEvent;
@@ -74,7 +74,7 @@ public class Paginator<E> implements Helper {
         }
         boolean hasPrevPage = commandPrefix != null && validPage(page - 1);
         boolean hasNextPage = commandPrefix != null && validPage(page + 1);
-        ITextComponent prevPageComponent = new TextComponentString("<<");
+        ITextComponent prevPageComponent = new StringTextComponent("<<");
         if (hasPrevPage) {
             prevPageComponent.getStyle()
                     .setClickEvent(new ClickEvent(
@@ -83,12 +83,12 @@ public class Paginator<E> implements Helper {
                     ))
                     .setHoverEvent(new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
-                            new TextComponentString("Click to view previous page")
+                            new StringTextComponent("Click to view previous page")
                     ));
         } else {
             prevPageComponent.getStyle().setColor(TextFormatting.DARK_GRAY);
         }
-        ITextComponent nextPageComponent = new TextComponentString(">>");
+        ITextComponent nextPageComponent = new StringTextComponent(">>");
         if (hasNextPage) {
             nextPageComponent.getStyle()
                     .setClickEvent(new ClickEvent(
@@ -97,12 +97,12 @@ public class Paginator<E> implements Helper {
                     ))
                     .setHoverEvent(new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
-                            new TextComponentString("Click to view next page")
+                            new StringTextComponent("Click to view next page")
                     ));
         } else {
             nextPageComponent.getStyle().setColor(TextFormatting.DARK_GRAY);
         }
-        ITextComponent pagerComponent = new TextComponentString("");
+        ITextComponent pagerComponent = new StringTextComponent("");
         pagerComponent.getStyle().setColor(TextFormatting.GRAY);
         pagerComponent.appendSibling(prevPageComponent);
         pagerComponent.appendText(" | ");

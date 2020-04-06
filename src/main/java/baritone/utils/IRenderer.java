@@ -20,10 +20,12 @@ package baritone.utils;
 import baritone.api.BaritoneAPI;
 import baritone.api.Settings;
 import baritone.api.utils.Helper;
+import baritone.utils.accessor.IEntityRenderManager;
+import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Matrix4f;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import net.minecraft.util.math.AxisAlignedBB;
 
@@ -35,25 +37,25 @@ public interface IRenderer {
 
     Tessellator tessellator = Tessellator.getInstance();
     BufferBuilder buffer = tessellator.getBuffer();
-    RenderManager renderManager = Helper.mc.getRenderManager();
+    IEntityRenderManager renderManager = (IEntityRenderManager) Helper.mc.getRenderManager();
     Settings settings = BaritoneAPI.getSettings();
 
     static void glColor(Color color, float alpha) {
         float[] colorComponents = color.getColorComponents(null);
-        GlStateManager.color(colorComponents[0], colorComponents[1], colorComponents[2], alpha);
+        RenderSystem.color4f(colorComponents[0], colorComponents[1], colorComponents[2], alpha);
     }
 
     static void startLines(Color color, float alpha, float lineWidth, boolean ignoreDepth) {
-        GlStateManager.enableBlend();
-        GlStateManager.disableLighting();
-        GlStateManager.tryBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+        RenderSystem.enableBlend();
+        RenderSystem.disableLighting();
+        RenderSystem.blendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
         glColor(color, alpha);
-        GlStateManager.glLineWidth(lineWidth);
-        GlStateManager.disableTexture2D();
-        GlStateManager.depthMask(false);
+        RenderSystem.lineWidth(lineWidth);
+        RenderSystem.disableTexture();
+        RenderSystem.depthMask(false);
 
         if (ignoreDepth) {
-            GlStateManager.disableDepth();
+            RenderSystem.disableDepthTest();
         }
     }
 
@@ -63,50 +65,51 @@ public interface IRenderer {
 
     static void endLines(boolean ignoredDepth) {
         if (ignoredDepth) {
-            GlStateManager.enableDepth();
+            RenderSystem.enableDepthTest();
         }
 
-        GlStateManager.depthMask(true);
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.disableBlend();
+        RenderSystem.depthMask(true);
+        RenderSystem.enableTexture();
+        RenderSystem.enableLighting();
+        RenderSystem.disableBlend();
     }
 
-    static void drawAABB(AxisAlignedBB aabb) {
-        AxisAlignedBB toDraw = aabb.offset(-renderManager.viewerPosX, -renderManager.viewerPosY, -renderManager.viewerPosZ);
+    static void drawAABB(MatrixStack stack, AxisAlignedBB aabb) {
+        AxisAlignedBB toDraw = aabb.offset(-renderManager.renderPosX(), -renderManager.renderPosY(), -renderManager.renderPosZ());
 
+        Matrix4f matrix4f = stack.getLast().getMatrix();
         buffer.begin(GL_LINES, DefaultVertexFormats.POSITION);
         // bottom
-        buffer.pos(toDraw.minX, toDraw.minY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.minY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.minY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.minY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.minY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.minY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.minY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.minY, toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.minY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.minY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.minY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.minY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.minY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.minY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.minY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.minY, (float) toDraw.minZ).endVertex();
         // top
-        buffer.pos(toDraw.minX, toDraw.maxY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.maxY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.maxY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.maxY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.maxY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.maxY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.maxY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.maxY, toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.maxY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.maxY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.maxY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.maxY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.maxY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.maxY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.maxY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.maxY, (float) toDraw.minZ).endVertex();
         // corners
-        buffer.pos(toDraw.minX, toDraw.minY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.maxY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.minY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.maxY, toDraw.minZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.minY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.maxX, toDraw.maxY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.minY, toDraw.maxZ).endVertex();
-        buffer.pos(toDraw.minX, toDraw.maxY, toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.minY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.maxY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.minY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.maxY, (float) toDraw.minZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.minY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.maxX, (float) toDraw.maxY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.minY, (float) toDraw.maxZ).endVertex();
+        buffer.pos(matrix4f, (float) toDraw.minX, (float) toDraw.maxY, (float) toDraw.maxZ).endVertex();
         tessellator.draw();
     }
 
-    static void drawAABB(AxisAlignedBB aabb, double expand) {
-        drawAABB(aabb.grow(expand, expand, expand));
+    static void drawAABB(MatrixStack stack, AxisAlignedBB aabb, double expand) {
+        drawAABB(stack, aabb.grow(expand, expand, expand));
     }
 }

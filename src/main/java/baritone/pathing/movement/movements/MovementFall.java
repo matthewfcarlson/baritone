@@ -31,13 +31,14 @@ import baritone.pathing.movement.MovementState;
 import baritone.pathing.movement.MovementState.MovementTarget;
 import baritone.utils.pathing.MutableMoveResult;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockLadder;
-import net.minecraft.block.state.IBlockState;
-import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.init.Blocks;
-import net.minecraft.init.Items;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.LadderBlock;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.fluid.WaterFluid;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
+import net.minecraft.item.Items;
+import net.minecraft.util.Direction;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
@@ -91,14 +92,15 @@ public class MovementFall extends Movement {
         BlockPos playerFeet = ctx.playerFeet();
         Rotation toDest = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), VecUtils.getBlockPosCenter(dest), ctx.playerRotations());
         Rotation targetRotation = null;
-        Block destBlock = ctx.world().getBlockState(dest).getBlock();
-        boolean isWater = destBlock == Blocks.WATER || destBlock == Blocks.FLOWING_WATER;
+        BlockState destState = ctx.world().getBlockState(dest);
+        Block destBlock = destState.getBlock();
+        boolean isWater = destState.getFluidState().getFluid() instanceof WaterFluid;
         if (!isWater && willPlaceBucket() && !playerFeet.equals(dest)) {
-            if (!InventoryPlayer.isHotbar(ctx.player().inventory.getSlotFor(STACK_BUCKET_WATER)) || ctx.world().provider.isNether()) {
+            if (!PlayerInventory.isHotbar(ctx.player().inventory.getSlotFor(STACK_BUCKET_WATER)) || ctx.world().getDimension().isNether()) {
                 return state.setStatus(MovementStatus.UNREACHABLE);
             }
 
-            if (ctx.player().posY - dest.getY() < ctx.playerController().getBlockReachDistance() && !ctx.player().onGround) {
+            if (ctx.player().getPositionVec().y - dest.getY() < ctx.playerController().getBlockReachDistance() && !ctx.player().onGround) {
                 ctx.player().inventory.currentItem = ctx.player().inventory.getSlotFor(STACK_BUCKET_WATER);
 
                 targetRotation = new Rotation(toDest.getYaw(), 90.0F);
@@ -113,17 +115,17 @@ public class MovementFall extends Movement {
         } else {
             state.setTarget(new MovementTarget(toDest, false));
         }
-        if (playerFeet.equals(dest) && (ctx.player().posY - playerFeet.getY() < 0.094 || isWater)) { // 0.094 because lilypads
+        if (playerFeet.equals(dest) && (ctx.player().getPositionVec().y - playerFeet.getY() < 0.094 || isWater)) { // 0.094 because lilypads
             if (isWater) { // only match water, not flowing water (which we cannot pick up with a bucket)
-                if (InventoryPlayer.isHotbar(ctx.player().inventory.getSlotFor(STACK_BUCKET_EMPTY))) {
+                if (PlayerInventory.isHotbar(ctx.player().inventory.getSlotFor(STACK_BUCKET_EMPTY))) {
                     ctx.player().inventory.currentItem = ctx.player().inventory.getSlotFor(STACK_BUCKET_EMPTY);
-                    if (ctx.player().motionY >= 0) {
+                    if (ctx.player().getMotion().y >= 0) {
                         return state.setInput(Input.CLICK_RIGHT, true);
                     } else {
                         return state;
                     }
                 } else {
-                    if (ctx.player().motionY >= 0) {
+                    if (ctx.player().getMotion().y >= 0) {
                         return state.setStatus(MovementStatus.SUCCESS);
                     } // don't else return state; we need to stay centered because this water might be flowing under the surface
                 }
@@ -132,17 +134,17 @@ public class MovementFall extends Movement {
             }
         }
         Vec3d destCenter = VecUtils.getBlockPosCenter(dest); // we are moving to the 0.5 center not the edge (like if we were falling on a ladder)
-        if (Math.abs(ctx.player().posX + ctx.player().motionX - destCenter.x) > 0.1 || Math.abs(ctx.player().posZ + ctx.player().motionZ - destCenter.z) > 0.1) {
-            if (!ctx.player().onGround && Math.abs(ctx.player().motionY) > 0.4) {
+        if (Math.abs(ctx.player().getPositionVec().x + ctx.player().getMotion().x - destCenter.x) > 0.1 || Math.abs(ctx.player().getPositionVec().z + ctx.player().getMotion().z - destCenter.z) > 0.1) {
+            if (!ctx.player().onGround && Math.abs(ctx.player().getMotion().y) > 0.4) {
                 state.setInput(Input.SNEAK, true);
             }
             state.setInput(Input.MOVE_FORWARD, true);
         }
-        Vec3i avoid = Optional.ofNullable(avoid()).map(EnumFacing::getDirectionVec).orElse(null);
+        Vec3i avoid = Optional.ofNullable(avoid()).map(Direction::getDirectionVec).orElse(null);
         if (avoid == null) {
             avoid = src.subtract(dest);
         } else {
-            double dist = Math.abs(avoid.getX() * (destCenter.x - avoid.getX() / 2.0 - ctx.player().posX)) + Math.abs(avoid.getZ() * (destCenter.z - avoid.getZ() / 2.0 - ctx.player().posZ));
+            double dist = Math.abs(avoid.getX() * (destCenter.x - avoid.getX() / 2.0 - ctx.player().getPositionVec().x)) + Math.abs(avoid.getZ() * (destCenter.z - avoid.getZ() / 2.0 - ctx.player().getPositionVec().z));
             if (dist < 0.6) {
                 state.setInput(Input.MOVE_FORWARD, true);
             } else if (!ctx.player().onGround) {
@@ -156,11 +158,11 @@ public class MovementFall extends Movement {
         return state;
     }
 
-    private EnumFacing avoid() {
+    private Direction avoid() {
         for (int i = 0; i < 15; i++) {
-            IBlockState state = ctx.world().getBlockState(ctx.playerFeet().down(i));
+            BlockState state = ctx.world().getBlockState(ctx.playerFeet().down(i));
             if (state.getBlock() == Blocks.LADDER) {
-                return state.getValue(BlockLadder.FACING);
+                return state.get(LadderBlock.FACING);
             }
         }
         return null;

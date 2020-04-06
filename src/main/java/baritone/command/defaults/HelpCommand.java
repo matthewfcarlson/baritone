@@ -26,7 +26,7 @@ import baritone.api.command.argument.IArgConsumer;
 import baritone.api.command.helpers.Paginator;
 import baritone.api.command.helpers.TabCompleteHelper;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.util.text.event.ClickEvent;
 import net.minecraft.util.text.event.HoverEvent;
@@ -58,17 +58,17 @@ public class HelpCommand extends Command {
                     command -> {
                         String names = String.join("/", command.getNames());
                         String name = command.getNames().get(0);
-                        ITextComponent shortDescComponent = new TextComponentString(" - " + command.getShortDesc());
+                        ITextComponent shortDescComponent = new StringTextComponent(" - " + command.getShortDesc());
                         shortDescComponent.getStyle().setColor(TextFormatting.DARK_GRAY);
-                        ITextComponent namesComponent = new TextComponentString(names);
+                        ITextComponent namesComponent = new StringTextComponent(names);
                         namesComponent.getStyle().setColor(TextFormatting.WHITE);
-                        ITextComponent hoverComponent = new TextComponentString("");
+                        ITextComponent hoverComponent = new StringTextComponent("");
                         hoverComponent.getStyle().setColor(TextFormatting.GRAY);
                         hoverComponent.appendSibling(namesComponent);
                         hoverComponent.appendText("\n" + command.getShortDesc());
                         hoverComponent.appendText("\n\nClick to view full help");
                         String clickCommand = FORCE_COMMAND_PREFIX + String.format("%s %s", label, command.getNames().get(0));
-                        ITextComponent component = new TextComponentString(name);
+                        ITextComponent component = new StringTextComponent(name);
                         component.getStyle().setColor(TextFormatting.GRAY);
                         component.appendSibling(shortDescComponent);
                         component.getStyle()
@@ -88,7 +88,7 @@ public class HelpCommand extends Command {
             logDirect("");
             command.getLongDesc().forEach(this::logDirect);
             logDirect("");
-            ITextComponent returnComponent = new TextComponentString("Click to return to the help menu");
+            ITextComponent returnComponent = new StringTextComponent("Click to return to the help menu");
             returnComponent.getStyle().setClickEvent(new ClickEvent(
                     ClickEvent.Action.RUN_COMMAND,
                     FORCE_COMMAND_PREFIX + label

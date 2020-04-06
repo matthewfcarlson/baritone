@@ -28,7 +28,8 @@ public class PlayerMovementInput extends MovementInput {
         this.handler = handler;
     }
 
-    public void updatePlayerMoveState() {
+    @Override
+    public void func_225607_a_(boolean p_225607_1_) {
         this.moveStrafe = 0.0F;
         this.moveForward = 0.0F;
 
@@ -50,7 +51,7 @@ public class PlayerMovementInput extends MovementInput {
             this.moveStrafe--;
         }
 
-        if (this.sneak = handler.isInputForcedDown(Input.SNEAK)) {
+        if (this.field_228350_h_ = handler.isInputForcedDown(Input.SNEAK)) {
             this.moveStrafe *= 0.3D;
             this.moveForward *= 0.3D;
         }
